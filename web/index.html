@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDP Gut Digital Twin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07071a;--panel:#0c0c24;--border:#1e2a4a;
+  --text:#d0d8f0;--dim:#5a6a8a;
+  --q:#e74c3c;--s:#e67e22;--d:#3498db;--b:#2ecc71;
+  --accent:#7c6bff;--green:#00ffa3;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;overflow:hidden}
+body{display:grid;grid-template-rows:52px 1fr;grid-template-columns:110px 1fr;height:100vh}
+
+/* HEADER */
+header{grid-column:1/-1;background:linear-gradient(90deg,#0a0a20,#12103a,#0a0a20);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px}
+header h1{font-family:'Rajdhani',sans-serif;font-size:1.15rem;font-weight:700;
+  background:linear-gradient(90deg,var(--green),var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+header span{font-size:.65rem;color:var(--dim);margin-left:auto}
+
+/* SIDEBAR */
+aside{background:#09091f;border-right:1px solid var(--border);padding:10px 6px;
+  display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.sb-section{display:flex;flex-direction:column;gap:4px}
+.sb-label{font-size:.55rem;color:#9ab;letter-spacing:2px;text-transform:uppercase;
+  padding:4px 4px 2px;border-bottom:1px solid #2a2a4a;margin-bottom:2px}
+.rb-btn{background:none;border:1px solid #2a2a4a;border-radius:4px;
+  color:#a0b4d0;font-family:'Space Mono',monospace;font-size:.6rem;
+  padding:5px 6px;cursor:pointer;text-align:left;transition:all .2s;width:100%}
+.rb-btn:hover{border-color:var(--accent);color:#ffffff}
+.rb-btn.active{border-color:var(--green);color:var(--green);background:#00ffa310}
+.rb-btn.disabled{color:#3a4a5a;border-color:#1a1a2a;cursor:default;pointer-events:none}
+
+.kb-box{background:#060616;border:1px solid #2a2a4a;border-radius:4px;padding:6px;
+  font-size:.52rem;color:#8899bb;line-height:1.8}
+.kb-box span{display:block}
+.kb-val{color:#c8dcf0;font-weight:700}
+
+/* MAIN GRID */
+main{display:grid;grid-template-columns:1fr 1fr 220px;grid-template-rows:1fr 260px;
+  gap:6px;padding:6px;overflow:hidden}
+
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  position:relative;overflow:hidden}
+.panel-title{position:absolute;top:6px;left:50%;transform:translateX(-50%);
+  font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;
+  letter-spacing:1px;white-space:nowrap;z-index:10;pointer-events:none}
+.title-healthy{color:var(--green)}
+.title-ibd{color:#ff9966}
+
+canvas.gut{width:100%;height:100%}
+
+/* KINETICS */
+#kineticPanel{grid-column:1/3;position:relative;padding:8px 12px}
+#kineticPanel .panel-title{left:12px;transform:none;font-size:.75rem;color:var(--text)}
+#chartWrap{position:absolute;inset:28px 8px 8px;width:calc(100% - 16px);height:calc(100% - 36px)}
+
+/* LEGEND */
+#legendPanel{display:flex;flex-direction:column;justify-content:space-between;padding:10px}
+.mol-entry{display:flex;align-items:center;gap:6px;font-size:.58rem;color:var(--text);line-height:1.4}
+.mol-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.status-badge{text-align:center;font-family:'Rajdhani',sans-serif;font-weight:700;
+  font-size:.8rem;letter-spacing:1px;padding:6px;border-radius:4px;
+  border:1px solid currentColor}
+
+/* PLASMID */
+#plasmidPanel{display:flex;align-items:center;justify-content:center;
+  background:#07071f}
+#plasmidPanel img{max-width:90%;max-height:90%;object-fit:contain;opacity:.9}
+
+/* inflammation bar inside IBD canvas */
+.inflam-wrap{position:absolute;bottom:8px;left:8px;right:8px;z-index:10}
+.inflam-track{height:5px;background:#1a0505;border-radius:3px;overflow:hidden}
+.inflam-fill{height:100%;background:linear-gradient(90deg,#ff3333,#ff6600);
+  border-radius:3px;transition:width .3s}
+.inflam-lbl{font-size:.55rem;color:#ff9999;text-align:center;margin-top:2px}
+.time-lbl{position:absolute;top:28px;left:50%;transform:translateX(-50%);
+  font-size:.7rem;color:#ffcc88;z-index:10}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#0a0a1a}
+::-webkit-scrollbar-thumb{background:#2a2a5a;border-radius:2px}
+
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:pulse 2s infinite;display:inline-block;margin-right:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="live-dot"></div>
+  <h1>IDP GUT DIGITAL TWIN  ·  SYNTHETIC BIFIDOBACTERIUM DASHBOARD</h1>
+  <span>MarR–PhlF Double-Inverter Circuit  |  Quercetin → DOPAC Therapeutic Conversion</span>
+</header>
+
+<aside>
+  <div class="sb-section">
+    <div class="sb-label">Disease Type</div>
+    <button class="rb-btn active" data-type="Healthy">Healthy</button>
+    <button class="rb-btn" data-type="Ulcerative Colitis">UC</button>
+    <button class="rb-btn" data-type="Crohn's Disease">Crohn's</button>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">Stage</div>
+    <button class="rb-btn stage-btn disabled" data-stage="Mild">Mild</button>
+    <button class="rb-btn stage-btn active disabled" data-stage="Moderate">Moderate</button>
+    <button class="rb-btn stage-btn disabled" data-stage="Severe">Severe</button>
+  </div>
+  <div class="kb-box" id="kbBox">
+    <span>Loading…</span>
+  </div>
+</aside>
+
+<main>
+  <!-- Healthy gut (static reference) -->
+  <div class="panel" id="healthyPanel">
+    <div class="panel-title title-healthy">Healthy Gut  (Reference)</div>
+    <canvas id="healthyCanvas"></canvas>
+    <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;
+      font-size:.55rem;color:#5a7a6a">No inflammatory Quercetin · Normal microbiome</div>
+  </div>
+
+  <!-- IBD animated gut -->
+  <div class="panel" id="ibdPanel">
+    <div class="panel-title title-ibd" id="ibdTitle">IBD Gut → Engineered Bifidobacterium Treatment</div>
+    <div class="time-lbl" id="timeLbl">T = 0.0 h</div>
+    <canvas id="ibdCanvas"></canvas>
+    <div class="inflam-wrap">
+      <div class="inflam-track"><div class="inflam-fill" id="ibdBar" style="width:100%"></div></div>
+      <div class="inflam-lbl" id="ibdBarLbl">Inflammation: 100%</div>
+    </div>
+  </div>
+
+  <!-- Plasmid diagram -->
+  <div class="panel" id="plasmidPanel">
+    <div class="panel-title" style="color:#cc99ff">Engineered Plasmid: pBBR1-IDP</div>
+    <img src="/assets/plasmid_diagram.png" alt="Plasmid diagram" onerror="this.style.display='none'">
+  </div>
+
+  <!-- Kinetics -->
+  <div class="panel" id="kineticPanel">
+    <div class="panel-title">ODE Kinetic Traces — 5-Phase Biological Timeline</div>
+    <div id="chartWrap"><canvas id="kineticChart"></canvas></div>
+  </div>
+
+  <!-- Legend -->
+  <div class="panel" id="legendPanel">
+    <div style="font-family:'Rajdhani',sans-serif;font-size:.8rem;color:#aabbdd;
+      font-weight:700;letter-spacing:1px;margin-bottom:6px">Molecule Key</div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#e74c3c"></div><span>Quercetin (IBD flare)</span></div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#e67e22"></div><span>Quercetin–MarR complex<br>(circuit sensing)</span></div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#3498db"></div><span>DOPAC (therapeutic resolution)</span></div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#2ecc71"></div><span>Bifidobacterium (enzyme producing)</span></div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#1a6b3a"></div><span>Bifidobacterium (idle)</span></div>
+    <div class="mol-entry"><div class="mol-dot" style="background:#ffffff;opacity:.4"></div><span>Neutral luminal proteins</span></div>
+    <div class="status-badge" id="statusBadge" style="color:#ff4444;border-color:#ff4444;margin-top:6px">
+      Status: IBD Flare Active
+    </div>
+  </div>
+</main>
+<script>
+// ── Constants ────────────────────────────────────────────────────────────────
+const C = {
+  Q:'#e74c3c', S:'#e67e22', D:'#3498db',
+  BON:'#2ecc71', BOFF:'#1a6b3a', NOISE:'rgba(255,255,255,0.08)'
+};
+const LUMEN = {cx:.5,cy:.5,rx:.40,ry:.30};
+const N_Q   = 160, N_NOISE=40, INTERACT_R=0.055, K_CAT=0.12;
+// Q_MAX = highest Q₀ in KB (Severe UC 160 µM) — used to normalise inflam_frac
+// so severity ordering is always Severe > Moderate > Mild > Healthy
+const Q_MAX = 160.0;
+
+// ── State ────────────────────────────────────────────────────────────────────
+let odeData={t:[],Q:[],E:[],D:[]}, params={}, nBact=18;
+let qPos=[], qState=[], bPos=[], bEnz=[], noisePos=[];
+let frame=0, animId=null, chart=null, isHealthy=false;
+let selectedType='Healthy', selectedStage='Moderate';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function randEllipse(n,cx,cy,rx,ry){
+  const pts=[];
+  while(pts.length<n){
+    const x=cx+(Math.random()*2-1)*rx, y=cy+(Math.random()*2-1)*ry;
+    if(((x-cx)**2/rx**2+(y-cy)**2/ry**2)<=1) pts.push([x,y]);
+  }
+  return pts;
+}
+function bacteriaWall(n){
+  return Array.from({length:n},(_,i)=>{
+    const a=2*Math.PI*i/n+(Math.random()-.5)*.1;
+    return [LUMEN.cx+LUMEN.rx*.88*Math.cos(a), LUMEN.cy+LUMEN.ry*.88*Math.sin(a)];
+  });
+}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}}
+function lerp(a,b,t){return a+(b-a)*t;}
+
+// ── Init simulation state ────────────────────────────────────────────────────
+function initSim(p, ode, healthy){
+  isHealthy = healthy;
+  nBact = p.n_bacteria;
+  qPos  = randEllipse(N_Q, LUMEN.cx, LUMEN.cy, LUMEN.rx*.85, LUMEN.ry*.85);
+  noisePos = randEllipse(N_NOISE, LUMEN.cx, LUMEN.cy, LUMEN.rx*.8, LUMEN.ry*.8);
+  bPos  = bacteriaWall(nBact);
+  // Bacteria start fully active for Healthy (pre-converted environment),
+  // inactive for IBD (enzyme expression begins once quercetin is sensed)
+  bEnz  = Array(nBact).fill(healthy ? 5.0 : 0.0);
+  // Seed quercetin particles proportional to Q₀ / Q_MAX.
+  // This guarantees visual severity ordering: Severe=160 dots, Moderate≈85,
+  // Mild≈40, Healthy≈20 — all out of 160 total particles.
+  const q0      = ode.Q[0];                              // initial ODE quercetin
+  const nQ      = Math.max(1, Math.round(N_Q * q0 / Q_MAX));
+  qState = Array(N_Q).fill(3);                           // default all to DOPAC
+  for(let i=0;i<nQ;i++) qState[i]=1;                    // set first nQ to quercetin
+  shuffle(qState);                                       // scatter randomly
+  frame = 0;
+  odeData = ode;
+}
+
+// ── Draw gut background ──────────────────────────────────────────────────────
+function drawGutBg(ctx, w, h){
+  ctx.clearRect(0,0,w,h);
+  // outer rings
+  const rings=[
+    {rx:.50,ry:.47,fill:'#1e0808'},{rx:.46,ry:.43,fill:'#2a0d0d'},
+    {rx:.42,ry:.38,fill:'#341010'},{rx:.38,ry:.33,fill:'#5a1c1c'},
+  ];
+  rings.forEach(r=>{
+    ctx.beginPath();
+    ctx.ellipse(w*.5,h*.5,w*r.rx,h*r.ry,0,0,Math.PI*2);
+    ctx.fillStyle=r.fill; ctx.fill();
+  });
+  // lumen
+  ctx.beginPath();
+  ctx.ellipse(w*.5,h*.5,w*LUMEN.rx,h*LUMEN.ry,0,0,Math.PI*2);
+  ctx.fillStyle='#0d0820'; ctx.fill();
+  ctx.strokeStyle='#6a1f8a'; ctx.lineWidth=1.5; ctx.stroke();
+}
+
+// ── Healthy canvas (static) ──────────────────────────────────────────────────
+function drawHealthyStatic(){
+  const cvs=document.getElementById('healthyCanvas');
+  const p=cvs.parentElement;
+  cvs.width=p.clientWidth; cvs.height=p.clientHeight;
+  const ctx=cvs.getContext('2d'), w=cvs.width, h=cvs.height;
+  drawGutBg(ctx,w,h);
+  // bacteria
+  const hbPos=bacteriaWall(28);
+  hbPos.forEach(([bx,by])=>{
+    ctx.beginPath(); ctx.arc(w*bx,h*by,4,0,Math.PI*2);
+    ctx.fillStyle=C.BOFF; ctx.fill();
+    ctx.strokeStyle='#aaffaa88'; ctx.lineWidth=.5; ctx.stroke();
+  });
+  // DOPAC dots
+  const hp=randEllipse(55,LUMEN.cx,LUMEN.cy,LUMEN.rx*.8,LUMEN.ry*.8);
+  hp.forEach(([x,y])=>{
+    ctx.beginPath(); ctx.arc(w*x,h*y,2.5,0,Math.PI*2);
+    ctx.fillStyle=C.D+'aa'; ctx.fill();
+  });
+  // small quercetin
+  const hq=randEllipse(10,LUMEN.cx,LUMEN.cy,LUMEN.rx*.7,LUMEN.ry*.7);
+  hq.forEach(([x,y])=>{
+    ctx.beginPath(); ctx.arc(w*x,h*y,2,0,Math.PI*2);
+    ctx.fillStyle=C.Q+'99'; ctx.fill();
+  });
+}
+
+// ── IBD canvas animation ─────────────────────────────────────────────────────
+function animFrame(){
+  const cvs=document.getElementById('ibdCanvas');
+  const p=cvs.parentElement;
+  if(cvs.width!==p.clientWidth||cvs.height!==p.clientHeight){
+    cvs.width=p.clientWidth; cvs.height=p.clientHeight;
+  }
+  const ctx=cvs.getContext('2d'), w=cvs.width, h=cvs.height;
+  const N=odeData.t.length, fMax=360;
+  const odeIdx=Math.min(Math.floor(frame/fMax*N), N-1);
+  const tNow=odeData.t[odeIdx]||0;
+  const ENow=odeData.E[odeIdx]||0;
+  const phi=1/(1+Math.exp(-1.8*(tNow-5)));
+
+  // Physics
+  for(let i=0;i<N_Q;i++){
+    if(qState[i]<3){
+      qPos[i][0]+=(Math.random()-.5)*.016;
+      qPos[i][1]+=(Math.random()-.5)*.016;
+      const dx=(qPos[i][0]-LUMEN.cx)/LUMEN.rx, dy=(qPos[i][1]-LUMEN.cy)/LUMEN.ry;
+      const d2=dx*dx+dy*dy;
+      if(d2>0.88){const n=Math.sqrt(d2); qPos[i][0]=LUMEN.cx+LUMEN.rx*.88*dx/n; qPos[i][1]=LUMEN.cy+LUMEN.ry*.88*dy/n;}
+      // nearest bacterium
+      let best=Infinity, bi=-1;
+      bPos.forEach(([bx,by],k)=>{const d=Math.hypot(qPos[i][0]-bx,qPos[i][1]-by);if(d<best){best=d;bi=k;}});
+      if(best<INTERACT_R){
+        if(qState[i]===1) qState[i]=2;
+        bEnz[bi]=Math.min(bEnz[bi]+.08,5);
+        const p_conv=K_CAT*bEnz[bi]*(ENow/30);
+        if(Math.random()<p_conv) qState[i]=3;
+      }
+    }
+  }
+  // bulk clearance
+  if(phi>.15&&ENow>.05){
+    const pBulk=.005*(ENow/10)*phi;
+    qState.forEach((s,i)=>{ if(s<3&&Math.random()<pBulk) qState[i]=3; });
+  }
+
+  // Draw
+  drawGutBg(ctx,w,h);
+  // ODE-derived inflammation fraction.
+  // Using Q(t)/Q_MAX (absolute normalisation) guarantees biological ordering:
+  // Severe > Moderate > Mild > Healthy at every time step,
+  // regardless of stochastic particle behaviour.
+  const iFrac = odeData.Q.length
+    ? Math.min(1, Math.max(0, odeData.Q[odeIdx] / Q_MAX))
+    : 0;
+  if(iFrac>.01){
+    const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*LUMEN.rx*.7);
+    g.addColorStop(0,`rgba(255,0,0,${iFrac*.18})`);
+    g.addColorStop(1,'transparent');
+    ctx.beginPath(); ctx.ellipse(w*.5,h*.5,w*LUMEN.rx*.7,h*LUMEN.ry*.7,0,0,Math.PI*2);
+    ctx.fillStyle=g; ctx.fill();
+  }
+  // noise
+  noisePos.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(w*x,h*y,1.2,0,Math.PI*2); ctx.fillStyle=C.NOISE; ctx.fill(); });
+  // particles
+  const colorMap={1:C.Q,2:C.S,3:C.D};
+  const sizeMap={1:3.5,2:4,3:2.8};
+  qPos.forEach(([x,y],i)=>{
+    ctx.beginPath(); ctx.arc(w*x,h*y,sizeMap[qState[i]],0,Math.PI*2);
+    ctx.fillStyle=colorMap[qState[i]]+'cc'; ctx.fill();
+  });
+  // bacteria
+  bPos.forEach(([bx,by],k)=>{
+    const lev=bEnz[k]/5;
+    const r=Math.round(lerp(26,46,lev)), g2=Math.round(lerp(107,204,lev)), b2=Math.round(lerp(58,113,lev));
+    ctx.beginPath(); ctx.arc(w*bx,h*by,5,0,Math.PI*2);
+    ctx.fillStyle=`rgb(${r},${g2},${b2})`; ctx.fill();
+    ctx.strokeStyle='#aaffaa66'; ctx.lineWidth=.6; ctx.stroke();
+    if(lev>.3){
+      ctx.beginPath(); ctx.arc(w*bx,h*by,7,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(46,204,113,${lev*.25})`; ctx.lineWidth=2; ctx.stroke();
+    }
+  });
+
+  // HUD
+  document.getElementById('timeLbl').textContent=`T = ${tNow.toFixed(1)} h`;
+  const pct=Math.round(iFrac*100);
+  document.getElementById('ibdBar').style.width=pct+'%';
+  document.getElementById('ibdBarLbl').textContent=`Inflammation: ${pct}%`;
+  const sb=document.getElementById('statusBadge');
+  if(iFrac>.75){sb.textContent='Status: IBD Flare Active';sb.style.color='#ff4444';sb.style.borderColor='#ff4444';}
+  else if(iFrac>.5){sb.textContent='Status: Treatment Engaging';sb.style.color='#ffaa33';sb.style.borderColor='#ffaa33';}
+  else if(iFrac>.15){sb.textContent='Status: Inflammation Receding';sb.style.color='#ffdd44';sb.style.borderColor='#ffdd44';}
+  else{sb.textContent='Status: Flare Resolved';sb.style.color='#44ff88';sb.style.borderColor='#44ff88';}
+
+  // kinetics — sync growing lines + trailing dot with current frame
+  if(chart&&odeData.t.length){
+    // Growing bright lines up to current odeIdx
+    const tSlice = odeData.t.slice(0,odeIdx+1);
+    chart.data.datasets[3].data = tSlice.map((t,i)=>({x:t, y:odeData.Q[i]}));
+    chart.data.datasets[4].data = tSlice.map((t,i)=>({x:t, y:odeData.E[i]}));
+    chart.data.datasets[5].data = tSlice.map((t,i)=>({x:t, y:odeData.D[i]}));
+    // Store current time for the vertical cursor plugin
+    chart._currentT = tNow;
+    chart.update('none');
+  }
+
+  frame++;
+  if(frame < 360){
+    animId = requestAnimationFrame(animFrame);
+  } else {
+    animId = null; // simulation complete — stay frozen at T=48h
+  }
+}
+
+// ── Chart.js setup ───────────────────────────────────────────────────────────
+function initChart(){
+  const ctx2=document.getElementById('kineticChart').getContext('2d');
+  chart=new Chart(ctx2,{
+    type:'line',
+    data:{datasets:[
+      // Ghost full-range traces (dim)
+      {label:'Quercetin (inflammatory)',borderColor:'#e74c3c44',backgroundColor:'#e74c3c',borderWidth:1.5,pointRadius:0,tension:.4,data:[],pointStyle:'rect'},
+      {label:'Quercetin Dioxygenase (enzyme)',borderColor:'#e67e2244',backgroundColor:'#e67e22',borderWidth:1.5,pointRadius:0,tension:.4,data:[],pointStyle:'rect'},
+      {label:'DOPAC (therapeutic)',borderColor:'#3498db44',backgroundColor:'#3498db',borderWidth:1.5,pointRadius:0,tension:.4,data:[],pointStyle:'rect'},
+      // Bright animated growing lines with trailing dot
+      {label:'',borderColor:'#e74c3c',borderWidth:5,pointRadius:(ctx)=>ctx.dataIndex===ctx.dataset.data.length-1?8:0,pointBackgroundColor:'#e74c3c',showLine:true,tension:.4,data:[]},
+      {label:'',borderColor:'#e67e22',borderWidth:5,pointRadius:(ctx)=>ctx.dataIndex===ctx.dataset.data.length-1?8:0,pointBackgroundColor:'#e67e22',showLine:true,tension:.4,data:[]},
+      {label:'',borderColor:'#3498db',borderWidth:5,pointRadius:(ctx)=>ctx.dataIndex===ctx.dataset.data.length-1?8:0,pointBackgroundColor:'#3498db',showLine:true,tension:.4,data:[]},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      parsing:false,
+      scales:{
+        x:{type:'linear',min:0,max:48,title:{display:true,text:'Time (hours)',color:'#b8cce8',font:{family:'Space Mono',size:11}},
+          grid:{color:'#1e2a4a'},ticks:{color:'#99aec8',font:{size:10}}},
+        y:{min:-2,max:55,title:{display:true,text:'Concentration (\u00b5M)',color:'#b8cce8',font:{family:'Space Mono',size:11}},
+          grid:{color:'#1e2a4a'},ticks:{color:'#99aec8',font:{size:10}}}
+      },
+      plugins:{legend:{labels:{color:'#e8f0ff',font:{family:'Space Mono',size:10},filter:i=>i.datasetIndex<3,boxWidth:16,padding:12}},
+        tooltip:{enabled:false}},
+    },
+    plugins:[{
+      id:'timeCursor',
+      afterDraw(chart){
+        const t = chart._currentT;
+        if(t==null||!chart.scales.x) return;
+        const xScale=chart.scales.x, yScale=chart.scales.y;
+        const x=xScale.getPixelForValue(t);
+        const yTop=yScale.top, yBot=yScale.bottom;
+        const ctx3=chart.ctx;
+        ctx3.save();
+        ctx3.setLineDash([4,4]);
+        ctx3.strokeStyle='rgba(255,255,255,0.55)';
+        ctx3.lineWidth=1.5;
+        ctx3.beginPath(); ctx3.moveTo(x,yTop); ctx3.lineTo(x,yBot); ctx3.stroke();
+        ctx3.setLineDash([]);
+        // Time label on cursor
+        ctx3.fillStyle='rgba(255,220,100,0.9)';
+        ctx3.font='bold 10px Space Mono,monospace';
+        ctx3.textAlign='center';
+        ctx3.fillText(`${t.toFixed(1)}h`, x, yTop-4);
+        ctx3.restore();
+      }
+    }]
+  });
+}
+
+// ── KB info box ──────────────────────────────────────────────────────────────
+function updateKbBox(p){
+  document.getElementById('kbBox').innerHTML=`
+    <span>Q₀ = <span class="kb-val">${p.quercetin_uM} µM</span></span>
+    <span>TNF-α = <span class="kb-val">${p.TNF_alpha_pgmL} pg/mL</span></span>
+    <span>IL-6 = <span class="kb-val">${p.IL6_pgmL} pg/mL</span></span>
+    <span>Barrier = <span class="kb-val">${p.barrier_integrity}</span></span>
+    <span>Dysbiosis = <span class="kb-val">${p.dysbiosis_score}</span></span>
+    <span>Coloniz. = <span class="kb-val">${p.colonization_efficiency_pct}%</span></span>
+    <span>Bact. = <span class="kb-val">${p.n_bacteria}</span></span>
+    <span style="color:#445566">PMID: ${p.pmid}</span>`;
+}
+
+// ── Fetch & reload ───────────────────────────────────────────────────────────
+async function loadSim(dtype, stage){
+  const res=await fetch(`/api/simulate?disease_type=${encodeURIComponent(dtype)}&stage=${encodeURIComponent(stage)}`);
+  if(!res.ok) return;
+  const {params:p, ode}=await res.json();
+  params=p;
+  const healthy=(dtype==='Healthy');
+  // set ghost traces on chart
+  if(chart){
+    // Dynamic Y-axis: find peak across all three traces + 15% headroom
+    const peakQ = Math.max(...ode.Q);
+    const peakE = Math.max(...ode.E);
+    const peakD = Math.max(...ode.D);
+    const yMax  = Math.ceil(Math.max(peakQ, peakE, peakD) * 1.15 / 10) * 10;
+    chart.options.scales.y.max = Math.max(yMax, 30); // floor at 30 so healthy isn't too squished
+    // Ghost full-range traces (dim, show full shape)
+    chart.data.datasets[0].data=ode.t.map((t,i)=>({x:t,y:ode.Q[i]}));
+    chart.data.datasets[1].data=ode.t.map((t,i)=>({x:t,y:ode.E[i]}));
+    chart.data.datasets[2].data=ode.t.map((t,i)=>({x:t,y:ode.D[i]}));
+    chart.data.datasets[0].borderWidth=1.5; chart.data.datasets[0].borderColor='#e74c3c55';
+    chart.data.datasets[1].borderWidth=1.5; chart.data.datasets[1].borderColor='#e67e2255';
+    chart.data.datasets[2].borderWidth=1.5; chart.data.datasets[2].borderColor='#3498db55';
+    // Bright thick animated lines (datasets 3-5) — reset to empty, fill each frame
+    chart.data.datasets[3].data=[]; chart.data.datasets[3].borderColor='#e74c3c'; chart.data.datasets[3].borderWidth=5;
+    chart.data.datasets[4].data=[]; chart.data.datasets[4].borderColor='#e67e22'; chart.data.datasets[4].borderWidth=5;
+    chart.data.datasets[5].data=[]; chart.data.datasets[5].borderColor='#3498db'; chart.data.datasets[5].borderWidth=5;
+    chart.update('none');
+  }
+  initSim(p, ode, healthy);
+  updateKbBox(p);
+  // panel title
+  const ibdTitle=document.getElementById('ibdTitle');
+  if(healthy){ibdTitle.textContent='Healthy Gut → No Inflammatory Load';ibdTitle.className='panel-title title-healthy';}
+  else{ibdTitle.textContent='IBD Gut → Engineered Bifidobacterium Treatment';ibdTitle.className='panel-title title-ibd';}
+}
+
+// ── Sidebar wiring ───────────────────────────────────────────────────────────
+function setStageEnabled(en){
+  document.querySelectorAll('.stage-btn').forEach(b=>{
+    b.classList.toggle('disabled',!en);
+    b.style.pointerEvents=en?'auto':'none';
+  });
+  document.querySelector('.sb-section:nth-child(2) .sb-label').style.color=en?'var(--accent)':'#2a2a4a';
+}
+
+document.querySelectorAll('[data-type]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    document.querySelectorAll('[data-type]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedType=btn.dataset.type;
+    const healthy=selectedType==='Healthy';
+    setStageEnabled(!healthy);
+    const stage=healthy?'Healthy':selectedStage;
+    if(animId) cancelAnimationFrame(animId);
+    await loadSim(selectedType, stage);
+    animFrame();
+  });
+});
+
+document.querySelectorAll('[data-stage]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if(btn.classList.contains('disabled')) return;
+    document.querySelectorAll('[data-stage]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedStage=btn.dataset.stage;
+    if(animId) cancelAnimationFrame(animId);
+    await loadSim(selectedType, selectedStage);
+    animFrame();
+  });
+});
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load',async()=>{
+  drawHealthyStatic();
+  initChart();
+  setStageEnabled(false);
+  await loadSim('Healthy','Healthy');
+  animFrame();
+});
+window.addEventListener('resize',()=>{ drawHealthyStatic(); });
+</script>
+</body>
+</html>
+
