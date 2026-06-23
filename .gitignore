@@ -1,5 +1,7 @@
 __pycache__/
 *.docx
 *.pdf
-gut_bg.png
-plasmid_diagram.png
+
+# Allow assets in their new location
+!frontend/assets/gut_bg.png
+!frontend/assets/plasmid_diagram.png

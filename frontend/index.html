@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IDP Gut Digital Twin Dashboard</title>
+<title>Gut Digital Twin · Bifidobacterium Dashboard</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="shortcut icon" type="image/png" href="/assets/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -143,7 +145,7 @@ canvas.gut{width:100%;height:100%}
   <!-- Plasmid diagram -->
   <div class="panel" id="plasmidPanel">
     <div class="panel-title" style="color:#cc99ff">Engineered Plasmid: pBBR1-IDP</div>
-    <img src="/assets/plasmid_diagram.png" alt="Plasmid diagram" onerror="this.style.display='none'">
+    <img src="assets/plasmid_diagram.png" alt="Plasmid diagram" onerror="this.style.display='none'">
   </div>
 
   <!-- Kinetics -->
@@ -168,6 +170,9 @@ canvas.gut{width:100%;height:100%}
   </div>
 </main>
 <script>
+// ── API Base URL — update this after deploying backend to Render ─────────────
+const API_BASE = 'https://bifido-ibd-backend.onrender.com';
+
 // ── Constants ────────────────────────────────────────────────────────────────
 const C = {
   Q:'#e74c3c', S:'#e67e22', D:'#3498db',
@@ -449,7 +454,7 @@ function updateKbBox(p){
 
 // ── Fetch & reload ───────────────────────────────────────────────────────────
 async function loadSim(dtype, stage){
-  const res=await fetch(`/api/simulate?disease_type=${encodeURIComponent(dtype)}&stage=${encodeURIComponent(stage)}`);
+  const res=await fetch(`${API_BASE}/api/simulate?disease_type=${encodeURIComponent(dtype)}&stage=${encodeURIComponent(stage)}`);
   if(!res.ok) return;
   const {params:p, ode}=await res.json();
   params=p;
