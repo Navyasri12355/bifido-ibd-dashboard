@@ -554,33 +554,34 @@ window.addEventListener('load',async()=>{
   animFrame();
 });
 window.addEventListener('resize',()=>{ drawHealthyStatic(); });
-
-// ── Plasmid lightbox ─────────────────────────────────────────────────────────
-const plasmidThumb = document.getElementById('plasmidThumb');
-const plasmidModal = document.getElementById('plasmidModal');
-const modalClose   = document.getElementById('modalClose');
-
-plasmidThumb && plasmidThumb.addEventListener('click', () => {
-  plasmidModal.classList.add('open');
-});
-plasmidModal && plasmidModal.addEventListener('click', (e) => {
-  if (e.target !== plasmidModal.querySelector('img')) {
-    plasmidModal.classList.remove('open');
-  }
-});
-modalClose && modalClose.addEventListener('click', () => {
-  plasmidModal.classList.remove('open');
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') plasmidModal.classList.remove('open');
-});
 </script>
 
-<!-- Plasmid lightbox modal — inside body so getElementById finds it -->
+<!-- Plasmid lightbox modal -->
 <div id="plasmidModal">
   <button id="modalClose" title="Close">&times;</button>
   <img src="assets/plasmid_diagram.png" alt="Plasmid diagram enlarged">
 </div>
+
+<script>
+// ── Plasmid lightbox (runs after modal div is in DOM) ─────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const thumb = document.getElementById('plasmidThumb');
+  const modal = document.getElementById('plasmidModal');
+  const close = document.getElementById('modalClose');
+
+  thumb && thumb.addEventListener('click', () => modal.classList.add('open'));
+
+  modal && modal.addEventListener('click', (e) => {
+    if (e.target !== modal.querySelector('img')) modal.classList.remove('open');
+  });
+
+  close && close.addEventListener('click', () => modal.classList.remove('open'));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') modal.classList.remove('open');
+  });
+});
+</script>
 
 </body>
 </html>
