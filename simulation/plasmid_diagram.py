@@ -22,8 +22,8 @@ import matplotlib.patheffects as pe
 
 # ── Canvas ────────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
-ax.set_xlim(-2.0, 2.0)
-ax.set_ylim(-1.30, 2.0)
+ax.set_xlim(-1.70, 1.70)
+ax.set_ylim(-1.18, 1.82)
 ax.set_aspect('equal')
 ax.axis('off')
 fig.patch.set_facecolor('#0f0f1e')

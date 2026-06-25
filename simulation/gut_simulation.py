@@ -38,6 +38,9 @@ from matplotlib.widgets import RadioButtons
 from scipy.integrate import odeint
 import os
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backend'))
+
 # Knowledge Base Engine
 from knowledge_base_engine import KnowledgeBaseEngine, DISEASE_TYPES, DISEASE_STAGES
 _KB = KnowledgeBaseEngine()
