@@ -563,7 +563,6 @@ const modalClose   = document.getElementById('modalClose');
 plasmidThumb && plasmidThumb.addEventListener('click', () => {
   plasmidModal.classList.add('open');
 });
-// Close on overlay click (but not on the image itself)
 plasmidModal && plasmidModal.addEventListener('click', (e) => {
   if (e.target !== plasmidModal.querySelector('img')) {
     plasmidModal.classList.remove('open');
@@ -576,13 +575,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') plasmidModal.classList.remove('open');
 });
 </script>
-</body>
 
-<!-- Plasmid lightbox modal -->
+<!-- Plasmid lightbox modal — inside body so getElementById finds it -->
 <div id="plasmidModal">
   <button id="modalClose" title="Close">&times;</button>
   <img src="assets/plasmid_diagram.png" alt="Plasmid diagram enlarged">
 </div>
 
+</body>
 </html>
-
