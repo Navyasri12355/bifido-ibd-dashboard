@@ -359,7 +359,7 @@ else:
     ax_plasmid.text(0.5, 0.5, 'Run\nplasmid_diagram.py\nfirst',
                     ha='center', va='center', color='#9988aa',
                     fontsize=9, transform=ax_plasmid.transAxes)
-ax_plasmid.set_title('Engineered Plasmid: pBBR1-IDP',
+ax_plasmid.set_title('Engineered Plasmid: pDOJH10S',
                       color='#cc99ff', fontsize=9, fontweight='bold',
                       fontfamily='monospace', pad=4)
 
